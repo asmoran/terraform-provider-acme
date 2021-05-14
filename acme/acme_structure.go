@@ -218,10 +218,7 @@ func splitPEMBundle(bundle []byte) (cert, issuer []byte, err error) {
 	if err != nil {
 		return
 	}
-	if len(cb) != 2 {
-		err = fmt.Errorf("Certificate bundle does not contain exactly 2 certificates")
-		return
-	}
+		
 	// lego always returns the issued cert first, if the CA is first there is a problem
 	if cb[0].IsCA {
 		err = fmt.Errorf("First certificate is a CA certificate")
@@ -229,7 +226,10 @@ func splitPEMBundle(bundle []byte) (cert, issuer []byte, err error) {
 	}
 
 	cert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cb[0].Raw})
-	issuer = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cb[1].Raw})
+	issuer = make([]byte, 0)
+	for _, ic := range cb[1:] {
+		issuer = append(issuer, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ic.Raw})...)
+	}
 	return
 }
 
@@ -244,10 +244,6 @@ func bundleToPKCS12(bundle, key []byte, password string) ([]byte, error) {
 		return nil, err
 	}
 
-	if len(cb) != 2 {
-		return nil, fmt.Errorf("Certificate bundle does not contain exactly 2 certificates")
-	}
-
 	// lego always returns the issued cert first, if the CA is first there is a problem
 	if cb[0].IsCA {
 		return nil, fmt.Errorf("First certificate is a CA certificate")
@@ -258,7 +254,7 @@ func bundleToPKCS12(bundle, key []byte, password string) ([]byte, error) {
 		return nil, err
 	}
 
-	pfxData, err := pkcs12.Encode(rand.Reader, pk, cb[0], cb[1:2], password)
+	pfxData, err := pkcs12.Encode(rand.Reader, pk, cb[0], cb[1:], password)
 	if err != nil {
 		return nil, err
 	}
